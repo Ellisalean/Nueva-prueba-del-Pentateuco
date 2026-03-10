@@ -4,7 +4,7 @@ import type { Question, UserAnswer } from './types';
 import WelcomeScreen from './components/WelcomeScreen';
 import QuestionDisplay from './components/QuestionDisplay';
 import ResultsScreen from './components/ResultsScreen';
-import { ArrowLeft, ArrowRight, HelpCircle, Home, PlayCircle, Menu } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Home, PlayCircle } from 'lucide-react';
 
 const App: React.FC = () => {
     const [quizState, setQuizState] = useState<'welcome' | 'active' | 'results'>('welcome');
@@ -137,10 +137,8 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-6">
                     <ArrowLeft size={20} className="cursor-pointer hover:text-gray-300 transition-colors" />
                     <ArrowRight size={20} className="cursor-pointer hover:text-gray-300 transition-colors" />
-                    <HelpCircle size={20} className="cursor-pointer hover:text-gray-300 transition-colors" />
                     <Home size={20} className="cursor-pointer hover:text-gray-300 transition-colors" />
                     <PlayCircle size={20} className="cursor-pointer hover:text-gray-300 transition-colors" />
-                    <Menu size={20} className="cursor-pointer hover:text-gray-300 transition-colors" />
                 </div>
             </div>
         </div>

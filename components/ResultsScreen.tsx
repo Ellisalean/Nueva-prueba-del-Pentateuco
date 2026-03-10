@@ -140,6 +140,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
 
         if (!formspreeEndpoint) {
             setErrorMessage('El endpoint de Formspree no está configurado. Por favor, añade VITE_FORMSPREE_ENDPOINT a las variables de entorno.');
+            setSendSuccess(false);
             setIsSending(false);
             return;
         }
