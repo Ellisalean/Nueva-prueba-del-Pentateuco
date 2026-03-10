@@ -136,14 +136,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
         setSendSuccess(null);
         setErrorMessage(null);
 
-        const formspreeEndpoint = import.meta.env.VITE_FORMSPREE_ENDPOINT;
-
-        if (!formspreeEndpoint) {
-            setErrorMessage('El endpoint de Formspree no está configurado. Por favor, añade VITE_FORMSPREE_ENDPOINT a las variables de entorno.');
-            setSendSuccess(false);
-            setIsSending(false);
-            return;
-        }
+        const formspreeEndpoint = 'https://formspree.io/f/xaqpqrny';
 
         // Generate summary for email
         let answersSummary = '';
