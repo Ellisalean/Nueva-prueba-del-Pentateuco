@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Question, UserAnswer } from '../types';
 import { QuestionType } from '../types';
-import { Download, Send, RotateCcw, Check, X, Paperclip } from 'lucide-react';
+import { Download, Send, RotateCcw, Shield } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -88,6 +88,26 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
     const [isSending, setIsSending] = useState(false);
     const [sendSuccess, setSendSuccess] = useState<boolean | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [token, setToken] = useState<string>('');
+    const [currentDate, setCurrentDate] = useState<string>('');
+
+    useEffect(() => {
+        const date = new Date();
+        const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+        const timeStr = `${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}`;
+        const randomHex = Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
+        const status = isSuccess ? 'A' : 'F';
+        setToken(`STL-05-${dateStr}${timeStr}-${status}-${randomHex}`);
+
+        setCurrentDate(date.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }));
+    }, [isSuccess]);
 
     const handleDownloadPDF = async () => {
         const element = document.getElementById('results-content');
@@ -96,7 +116,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
         try {
             const canvas = await html2canvas(element, {
                 scale: 2,
-                backgroundColor: '#373b3e',
+                backgroundColor: '#ffffff',
             });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
@@ -115,6 +135,14 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
         setIsSending(true);
         setSendSuccess(null);
         setErrorMessage(null);
+
+        const formspreeEndpoint = import.meta.env.VITE_FORMSPREE_ENDPOINT;
+
+        if (!formspreeEndpoint) {
+            setErrorMessage('El endpoint de Formspree no está configurado. Por favor, añade VITE_FORMSPREE_ENDPOINT a las variables de entorno.');
+            setIsSending(false);
+            return;
+        }
 
         // Generate summary for email
         let answersSummary = '';
@@ -138,19 +166,21 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
         });
 
         try {
-            const response = await fetch('/api/send-results', {
+            const response = await fetch(formspreeEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    name: studentName,
-                    lastName: studentLastName,
-                    subject: 'El Pentateuco',
-                    score,
-                    totalPoints,
-                    percentage,
-                    answersSummary
+                    subject: `Resultados de Examen: El Pentateuco - ${studentName} ${studentLastName}`,
+                    studentName: `${studentName} ${studentLastName}`,
+                    course: 'El Pentateuco',
+                    score: `${score} / ${totalPoints}`,
+                    percentage: `${percentage}%`,
+                    status: isSuccess ? 'APROBADO' : 'REPROBADO',
+                    token: token,
+                    answersSummary: answersSummary
                 }),
             });
 
@@ -158,7 +188,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
                 setSendSuccess(true);
             } else {
                 const errorData = await response.json();
-                setErrorMessage(errorData.error || 'Hubo un error al enviar la prueba. Por favor, verifica la configuración del servidor.');
+                setErrorMessage(errorData.error || 'Hubo un error al enviar la prueba a Formspree.');
                 setSendSuccess(false);
             }
         } catch (error: any) {
@@ -171,78 +201,81 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-[#373b3e] p-10 md:p-16 shadow-2xl animate__animated animate__fadeIn relative">
-            <div className="absolute top-8 right-8 text-[#c65b39]">
-                <Paperclip size={48} className="opacity-80" />
-            </div>
-            
-            <div id="results-content" className="bg-[#373b3e]">
-                <div className="flex items-center gap-6 mb-8">
-                    <div className="bg-white rounded-full p-3">
-                        {isSuccess ? <Check className="text-[#388e3c]" size={40} /> : <X className="text-[#c65b39]" size={40} />}
+        <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden font-sans animate__animated animate__fadeIn">
+            <div id="results-content" className="bg-white pb-12">
+                {/* Header */}
+                <div className="bg-[#1a3673] text-white py-12 px-8 text-center relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
+                    <div className="relative z-10 flex flex-col items-center">
+                        <div className="bg-white text-[#d97706] w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-lg">
+                            <Shield size={40} strokeWidth={1.5} />
+                        </div>
+                        <h1 className="text-3xl md:text-4xl font-serif font-bold mb-3 tracking-wide">Latin Theological Seminary</h1>
+                        <p className="text-xs md:text-sm tracking-[0.25em] uppercase opacity-80 font-medium">Certificado Oficial de Resultados</p>
                     </div>
-                    <h1 className={`text-4xl md:text-5xl font-light ${isSuccess ? 'text-[#4caf50]' : 'text-[#c65b39]'}`}>
-                        {isSuccess ? 'Test success!' : 'Test fail!'}
-                    </h1>
                 </div>
 
-                <p className="text-white text-lg mb-12 font-light">
-                    {isSuccess 
-                        ? `¡Felicidades ${studentName}! Has aprobado el examen con un ${percentage}%.` 
-                        : `Lo siento ${studentName}, no has aprobado este examen. Tu puntuación fue del ${percentage}%.`}
-                </p>
+                {/* Body */}
+                <div className="px-8 md:px-16 pt-12 text-center">
+                    <p className="text-gray-500 italic mb-4 text-lg">Se otorga el presente reconocimiento a:</p>
+                    <h2 className="text-5xl md:text-6xl font-serif font-bold mb-16 text-gray-900 tracking-tight">{studentName} {studentLastName}</h2>
 
-                <div className="my-8 text-left">
-                    <h2 className="text-2xl font-light text-[#4caf50] mb-4">Resumen de Respuestas</h2>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
-                        {questions.map((q, index) => {
-                            const userAnswer = userAnswers[index];
-                            let isCorrect = false;
-                            
-                            if (q.type === QuestionType.MULTIPLE_CHOICE) {
-                                 isCorrect = q.options?.find(opt => opt.text === userAnswer)?.isCorrect || false;
-                            } else if (q.type === QuestionType.FILL_IN_THE_BLANK) {
-                                isCorrect = typeof userAnswer === 'string' && userAnswer.toLowerCase().trim() === q.correctAnswer?.toLowerCase().trim();
-                            } else if (q.type === QuestionType.TRUE_FALSE) {
-                                isCorrect = userAnswer === q.correctBoolean;
-                            }
-                            
-                            return (
-                                <div key={q.id} className={`p-4 rounded-lg border-l-4 ${isCorrect ? 'bg-[#2a2d2f] border-[#4caf50]' : 'bg-[#2a2d2f] border-[#c65b39]'}`}>
-                                    <p className="font-light text-white">{index + 1}. {q.questionText}</p>
-                                    <div className="text-sm mt-2 text-gray-300">
-                                        <span className="font-semibold text-gray-400">Tu respuesta: </span> 
-                                        {formatUserAnswer(q, userAnswer)}
-                                    </div>
-                                    {!isCorrect && (q.type === 'MULTIPLE_CHOICE' || q.type === 'FILL_IN_THE_BLANK' || q.type === 'TRUE_FALSE') &&
-                                    <p className="text-sm mt-2 text-[#4caf50]">
-                                        <span className="font-semibold">Respuesta correcta:</span> {getCorrectAnswerText(q)}
-                                    </p>
-                                    }
-                                </div>
-                            );
-                        })}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                        <div className="bg-[#fafafa] p-6 rounded-lg border border-gray-100 shadow-sm text-left">
+                            <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-semibold">Materia</p>
+                            <p className="font-medium text-gray-800 text-lg">El Pentateuco</p>
+                        </div>
+                        <div className="bg-[#fafafa] p-6 rounded-lg border border-gray-100 shadow-sm text-left">
+                            <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-semibold">Calificación</p>
+                            <p className={`text-2xl font-bold ${isSuccess ? 'text-green-600' : 'text-red-600'}`}>{score} / {totalPoints}</p>
+                        </div>
+                        <div className="bg-[#fafafa] p-6 rounded-lg border border-gray-100 shadow-sm text-left">
+                            <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-semibold">Estado</p>
+                            <p className={`text-lg font-bold ${isSuccess ? 'text-green-600' : 'text-red-600'}`}>{isSuccess ? 'APROBADO' : 'REPROBADO'}</p>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3 font-semibold">Token de Verificación Único</p>
+                        <div className="bg-[#111111] text-white font-mono text-sm py-3 px-8 rounded inline-block tracking-[0.2em] shadow-inner">
+                            {token}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-4">{currentDate}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="flex flex-wrap gap-4 mt-12">
-                <button onClick={onRestart} className="bg-[#2e7d32] hover:bg-[#1b5e20] text-white font-bold py-3 px-6 rounded-full text-sm uppercase tracking-wider transition-colors flex items-center gap-2">
-                    <RotateCcw size={18} />
-                    Repeat the course
-                </button>
-                <button onClick={handleDownloadPDF} className="bg-[#2e7d32] hover:bg-[#1b5e20] text-white font-bold py-3 px-6 rounded-full text-sm uppercase tracking-wider transition-colors flex items-center gap-2">
-                    <Download size={18} />
-                    Descargar PDF
-                </button>
-                <button onClick={handleSendEmail} disabled={isSending || sendSuccess === true} className={`bg-[#2e7d32] hover:bg-[#1b5e20] text-white font-bold py-3 px-6 rounded-full text-sm uppercase tracking-wider transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}>
-                    <Send size={18} />
-                    {isSending ? 'Enviando...' : sendSuccess ? '¡Enviado!' : 'Enviar Prueba'}
-                </button>
+            {/* Footer / Buttons */}
+            <div className="bg-white px-8 pb-12 flex flex-col items-center">
+                <div className="flex flex-wrap justify-center gap-6 w-full mt-4">
+                    <button 
+                        onClick={handleSendEmail} 
+                        disabled={isSending || sendSuccess === true} 
+                        className="bg-[#1a3673] hover:bg-blue-900 text-white font-medium py-3 px-8 rounded-full transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                    >
+                        {isSending ? 'Enviando...' : sendSuccess ? '¡Enviado!' : 'Enviar Resultados al Profesor'}
+                    </button>
+                    <button 
+                        onClick={handleDownloadPDF} 
+                        className="bg-white border-2 border-gray-900 text-gray-900 hover:bg-gray-50 font-medium py-3 px-8 rounded-full transition-colors flex items-center gap-2 shadow-sm"
+                    >
+                        Descargar PDF
+                    </button>
+                    <button 
+                        onClick={onRestart} 
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-8 rounded-full transition-colors flex items-center gap-2 shadow-sm"
+                    >
+                        <RotateCcw size={18} />
+                        Repetir Prueba
+                    </button>
+                </div>
+                {sendSuccess === false && (
+                    <p className="text-red-500 mt-6 text-sm">{errorMessage || 'Hubo un error al enviar la prueba.'}</p>
+                )}
+                {sendSuccess === true && (
+                    <p className="text-green-600 mt-6 text-sm font-medium">¡Resultados enviados correctamente!</p>
+                )}
             </div>
-            {sendSuccess === false && (
-                <p className="text-[#c65b39] mt-4 text-sm font-light">{errorMessage || 'Hubo un error al enviar la prueba. Por favor, verifica la configuración del servidor.'}</p>
-            )}
         </div>
     );
 };
