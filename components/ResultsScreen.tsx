@@ -87,6 +87,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
     
     const [isSending, setIsSending] = useState(false);
     const [sendSuccess, setSendSuccess] = useState<boolean | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const handleDownloadPDF = async () => {
         const element = document.getElementById('results-content');
@@ -113,6 +114,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
     const handleSendEmail = async () => {
         setIsSending(true);
         setSendSuccess(null);
+        setErrorMessage(null);
 
         // Generate summary for email
         let answersSummary = '';
@@ -155,10 +157,13 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
             if (response.ok) {
                 setSendSuccess(true);
             } else {
+                const errorData = await response.json();
+                setErrorMessage(errorData.error || 'Hubo un error al enviar la prueba. Por favor, verifica la configuración del servidor.');
                 setSendSuccess(false);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error sending email:', error);
+            setErrorMessage(error.message || 'Error de conexión al enviar el correo.');
             setSendSuccess(false);
         } finally {
             setIsSending(false);
@@ -236,7 +241,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ studentName, studentLastN
                 </button>
             </div>
             {sendSuccess === false && (
-                <p className="text-[#c65b39] mt-4 text-sm font-light">Hubo un error al enviar la prueba. Por favor, verifica la configuración del servidor.</p>
+                <p className="text-[#c65b39] mt-4 text-sm font-light">{errorMessage || 'Hubo un error al enviar la prueba. Por favor, verifica la configuración del servidor.'}</p>
             )}
         </div>
     );

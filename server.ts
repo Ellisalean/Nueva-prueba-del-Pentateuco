@@ -25,7 +25,7 @@ app.post("/api/send-results", async (req, res) => {
   try {
     const { data, error } = await resend.emails.send({
       from: "Examen <onboarding@resend.dev>",
-      to: process.env.TEACHER_EMAIL || "tu-correo@ejemplo.com", // Fallback if not set
+      to: process.env.TEACHER_EMAIL || "tu-correo@ejemplo.com", // Must be the verified email in Resend if using onboarding@resend.dev
       subject: `Resultados de Examen: ${subject} - ${name} ${lastName}`,
       html: `
         <h2>Resultados de Evaluación</h2>
@@ -39,12 +39,14 @@ app.post("/api/send-results", async (req, res) => {
     });
 
     if (error) {
-      return res.status(400).json({ error });
+      console.error("Resend API Error:", error);
+      return res.status(400).json({ error: error.message || "Error from Resend API" });
     }
 
     res.status(200).json({ data });
-  } catch (error) {
-    res.status(500).json({ error: "Error al enviar el correo." });
+  } catch (error: any) {
+    console.error("Server Error:", error);
+    res.status(500).json({ error: error.message || "Error al enviar el correo." });
   }
 });
 
